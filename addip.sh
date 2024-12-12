@@ -24,15 +24,16 @@ fi
 
 source $INCREMENT_FILE
 
-NEW_PORT=$((BASE_PORT + INDEX - 1))
+# İlk eklemede INDEX=1 olduğundan port = 1194+1 = 1195 olacak
+NEW_PORT=$((BASE_PORT + INDEX))
 
-# Subnet hesaplama (iki oktet kullanarak büyütebiliyoruz)
+# Subnet hesaplama
 OFFSET=$((INDEX - 1))
 SECOND_OCTET=$((BASE_SECOND_OCTET + (OFFSET / 256)))
 THIRD_OCTET=$((OFFSET % 256))
 NEW_SUBNET="10.${SECOND_OCTET}.${THIRD_OCTET}.0"
 
-NEW_CONF="/etc/openvpn/server${INDEX}.conf"
+NEW_CONF="/etc/openvpn/server${NEW_PORT}.conf"
 
 cp $ORIGINAL_CONF $NEW_CONF
 
@@ -40,7 +41,6 @@ cp $ORIGINAL_CONF $NEW_CONF
 if ! grep -q "^local " $NEW_CONF; then
     sed -i "1ilocal ${NEW_IP}" $NEW_CONF
 else
-    # Eğer orijinalde varsa yine de değiştirmek isterseniz:
     sed -i "s/^local .*/local ${NEW_IP}/" $NEW_CONF
 fi
 
@@ -51,15 +51,13 @@ sed -i 's/^proto udp6/proto udp/' $NEW_CONF
 sed -i "s/^port .*/port ${NEW_PORT}/" $NEW_CONF
 
 # server satırını güncelle
-# Orijinalde "server 10.8.0.0 255.255.255.0" olduğunu varsayıyoruz.
-# Onu NEW_SUBNET ile değiştiriyoruz.
 sed -i "s|^server 10\.8\.0\.0 255\.255\.255\.0|server ${NEW_SUBNET} 255.255.255.0|" $NEW_CONF
 
 # iptables NAT kuralı
 iptables -t nat -A POSTROUTING -s ${NEW_SUBNET}/24 -o eth0 -j SNAT --to-source ${NEW_IP}
 
 # Systemd service
-SERVICE_NAME="openvpn@server${INDEX}"
+SERVICE_NAME="openvpn@server${NEW_PORT}"
 systemctl enable $SERVICE_NAME
 systemctl start $SERVICE_NAME
 
