@@ -9,7 +9,7 @@ fi
 ORIGINAL_CONF="/etc/openvpn/server.conf"
 INCREMENT_FILE="/etc/openvpn/increments.txt"
 BASE_PORT=1194
-BASE_SECOND_OCTET=8 # Başlangıç subnet: 10.8.0.0
+BASE_SECOND_OCTET=8 # Başlangıç subnet: 10.8.x.0
 
 if [ ! -f "$ORIGINAL_CONF" ]; then
     echo "Orijinal server.conf bulunamadı: $ORIGINAL_CONF"
@@ -28,7 +28,7 @@ source $INCREMENT_FILE
 NEW_PORT=$((BASE_PORT + INDEX))
 
 # Subnet hesaplama
-OFFSET=$((INDEX - 1))
+OFFSET=$INDEX
 SECOND_OCTET=$((BASE_SECOND_OCTET + (OFFSET / 256)))
 THIRD_OCTET=$((OFFSET % 256))
 NEW_SUBNET="10.${SECOND_OCTET}.${THIRD_OCTET}.0"
@@ -51,10 +51,12 @@ sed -i 's/^proto udp6/proto udp/' $NEW_CONF
 sed -i "s/^port .*/port ${NEW_PORT}/" $NEW_CONF
 
 # server satırını güncelle
+# Orijinalde "server 10.8.0.0 255.255.255.0" olduğunu varsayıyoruz.
+# Onu NEW_SUBNET ile değiştiriyoruz.
 sed -i "s|^server 10\.8\.0\.0 255\.255\.255\.0|server ${NEW_SUBNET} 255.255.255.0|" $NEW_CONF
 
 # iptables NAT kuralı
-iptables -t nat -A POSTROUTING -s ${NEW_SUBNET}/24 -o eth0 -j SNAT --to-source ${NEW_IP}
+iptables -t nat -A POSTROUTING -s ${NEW_SUBNET}/24 -o ens18 -j SNAT --to-source ${NEW_IP}
 
 # Systemd service
 SERVICE_NAME="openvpn@server${NEW_PORT}"
