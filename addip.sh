@@ -45,7 +45,7 @@ else
 fi
 
 # proto udp6 => proto udp
-sed -i 's/^proto udp6/proto udp/' $NEW_CONF
+sed -i 's/^proto udp6/proto tcp/' $NEW_CONF
 
 # port güncelle
 sed -i "s/^port .*/port ${NEW_PORT}/" $NEW_CONF
